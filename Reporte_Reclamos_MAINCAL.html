@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Gestión de Reclamos</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- SheetJS (XLSX / CSV parser) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        @media print {
+            .no-print { display: none !important; }
+            body { background-color: #ffffff !important; }
+            .page-break { page-break-after: always; break-after: page; }
+            .print-shadow { box-shadow: none !important; border: 1px solid #cbd5e1 !important; }
+        }
+        /* ===== EXPORTACIÓN PDF (layout de impresión aislado) ===== */
+        #pdfRoot { display: none; }
+        .pdf-slide { width: 1456px; height: 818px; position: relative; overflow: hidden; box-sizing: border-box; font-family: 'Roboto', 'Inter', Arial, sans-serif; color: #1e293b; -webkit-print-color-adjust: exact; print-color-adjust: exact; break-after: page; page-break-after: always; }
+        .pdf-slide:last-child { break-after: auto; page-break-after: auto; }
+        .pdf-slide * { box-sizing: border-box; margin: 0; }
+        .pdf-light { background: radial-gradient(circle at 92% 6%, #e0f2fe 0, rgba(224,242,254,0) 38%), radial-gradient(circle at 4% 96%, #e0f2fe 0, rgba(224,242,254,0) 30%), #fff; }
+        .pdf-dark { background: linear-gradient(135deg, #0b2447 0%, #123a6b 100%); color: #fff; }
+        .pdf-h { position: absolute; left: 68px; right: 68px; top: 56px; padding-bottom: 22px; border-bottom: 1px solid #e2e8f0; font: 800 38px 'Poppins', 'Inter', Arial, sans-serif; color: #0b2447; }
+        .pdf-h small { font-size: 20px; font-weight: 500; color: #64748b; }
+        .pdf-body { position: absolute; left: 68px; right: 68px; top: 150px; bottom: 100px; display: flex; flex-direction: column; justify-content: center; }
+        .pdf-foot { position: absolute; left: 68px; right: 68px; bottom: 34px; padding-top: 18px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font: 500 16px 'Roboto', Arial, sans-serif; color: #64748b; }
+        .pdf-dark .pdf-foot { border-top-color: rgba(255,255,255,.18); color: #94a3b8; }
+        .pdf-cover-card { position: absolute; left: 216px; right: 216px; top: 152px; bottom: 177px; border: 1px solid rgba(255,255,255,.14); border-radius: 36px; background: rgba(255,255,255,.05); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 60px; }
+        .pdf-brand { font: 700 50px 'Poppins', Arial, sans-serif; letter-spacing: 9px; color: #38bdf8; }
+        .pdf-title { font: 700 56px/1.2 'Poppins', Arial, sans-serif; margin-top: 36px; }
+        .pdf-sub { font-size: 27px; color: #38bdf8; margin-top: 26px; }
+        .pdf-meta { display: flex; gap: 48px; margin-top: 34px; padding-top: 28px; border-top: 1px solid rgba(255,255,255,.16); width: 100%; justify-content: center; font-size: 21px; color: #cbd5e1; }
+        .pdf-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-bottom: 28px; }
+        .pdf-kpi { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 18px; padding: 26px 10px 22px; text-align: center; }
+        .pdf-kpi.hl { background: #f0f9ff; border-color: #bae6fd; }
+        .pdf-kpi b { display: block; font: 800 46px 'Poppins', Arial, sans-serif; color: #0b2447; }
+        .pdf-kpi span { display: block; margin-top: 4px; font: 700 18px 'Roboto', Arial, sans-serif; color: #475569; }
+        .pdf-box { background: #f8fafc; border: 1px solid #e2e8f0; border-left: 6px solid #0284c7; border-radius: 18px; padding: 28px 36px; font-size: 20px; line-height: 1.45; }
+        .pdf-box p { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 16px; }
+        .pdf-box p:last-child { margin-bottom: 0; }
+        .pdf-box svg { flex: 0 0 24px; margin-top: 3px; }
+        .pdf-box.big { border-left: 0; border-top: 6px solid #0b2447; padding: 36px 46px; font-size: 21px; }
+        .pdf-box.big h3 { font: 800 30px 'Poppins', Arial, sans-serif; color: #0b2447; margin-bottom: 26px; }
+        .pdf-box.big p { margin-bottom: 22px; }
+        .pdf-donut { display: flex; align-items: center; justify-content: space-between; gap: 40px; }
+        .pdf-items { flex: 1; max-width: 640px; }
+        .pdf-item { display: flex; justify-content: space-between; align-items: center; gap: 16px; background: #f8fafc; border-left: 5px solid #0b2447; border-radius: 14px; padding: 16px 24px; margin-bottom: 18px; }
+        .pdf-item:last-child { margin-bottom: 0; }
+        .pdf-item strong { display: block; font-size: 21px; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .pdf-item em { display: block; font-style: normal; font-size: 15px; color: #64748b; margin-top: 3px; }
+        .pdf-item b { font: 700 24px 'Poppins', Arial, sans-serif; white-space: nowrap; }
+        .pdf-item b i { font: 400 17px 'Roboto', Arial, sans-serif; font-style: normal; color: #64748b; }
+        .pdf-bars { display: flex; align-items: flex-end; justify-content: space-around; height: 300px; border-bottom: 2px solid #cbd5e1; padding: 0 30px; }
+        .pdf-bar { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; flex: 1; height: 100%; }
+        .pdf-bar b { font: 700 20px 'Poppins', Arial, sans-serif; color: #0369a1; margin-bottom: 8px; }
+        .pdf-bar div { width: 80px; max-width: 70%; border-radius: 8px 8px 0 0; background: linear-gradient(#38bdf8, #0284c7); }
+        .pdf-bar.pk b { color: #0b2447; }
+        .pdf-bar.pk div { background: linear-gradient(#0b2447, #163f73); }
+        .pdf-lbls { display: flex; justify-content: space-around; padding: 12px 30px 0; }
+        .pdf-lbls span { flex: 1; text-align: center; font: 700 18px 'Roboto', Arial, sans-serif; color: #475569; }
+        .pdf-note { margin-top: 28px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 16px; padding: 22px 30px; font-size: 19px; color: #075985; line-height: 1.45; }
+        .pdf-intro { font-size: 19px; color: #64748b; margin-bottom: 18px; }
+        .pdf-tbl { width: 100%; border-collapse: collapse; background: #fff; table-layout: fixed; box-shadow: 0 2px 12px rgba(15,23,42,.06); border-radius: 10px; overflow: hidden; }
+        .pdf-tbl th { background: #0b2447; color: #fff; font: 600 17px 'Poppins', Arial, sans-serif; padding: 14px 18px; height: 50px; }
+        .pdf-tbl td { padding: 0 18px; height: 46px; font-size: 17px; border-bottom: 1px solid #e2e8f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .pdf-tbl td:first-child { font-weight: 700; }
+        .pdf-tbl tr.pdf-tot td { background: #f1f5f9; font-weight: 800; color: #0b2447; border-top: 2px solid #0b2447; }
+        .pdf-tbl td.wrap { white-space: normal; line-height: 1.25; font-size: 16px; }
+        .pdf-pill { display: inline-block; background: #fef3c7; color: #d97706; font: 700 14px 'Roboto', Arial, sans-serif; padding: 4px 11px; border-radius: 999px; margin-right: 8px; }
+        .pdf-ok { color: #059669; font-weight: 700; } .pdf-warn { color: #d97706; font-weight: 700; }
+        @media print {
+            html.pdf-mode body > *:not(#pdfRoot) { display: none !important; }
+            html.pdf-mode body { display: block !important; background: #fff !important; min-height: 0 !important; margin: 0 !important; }
+            html.pdf-mode #pdfRoot { display: block !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Header Corporativo -->
+    <header class="bg-[#0f172a] text-white shadow-md no-print sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="bg-sky-500 text-white px-3 py-1.5 rounded-lg font-bold text-sm tracking-wider">MAINCAL</div>
+                <div>
+                    <h1 class="font-bold text-base leading-tight">Reporte de Gestión de Reclamos</h1>
+                    <p class="text-xs text-slate-400">Supply Chain y Servicio al Cliente</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button id="resetFileBtn" onclick="location.reload()" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium transition border border-slate-700 cursor-pointer">
+                    Cargar Otro Archivo
+                </button>
+                <button id="exportExcelBtn" onclick="exportToExcel()" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 cursor-pointer shadow">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Exportar Excel
+                </button>
+                <button id="printBtn" onclick="exportPDF()" class="hidden bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 cursor-pointer shadow">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                    Generar PDF / Imprimir
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Sección de Carga de Archivo -->
+    <main class="flex-grow max-w-7xl w-full mx-auto p-6">
+        <div id="uploadCard" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center max-w-xl mx-auto my-16 no-print">
+            <div class="w-16 h-16 bg-sky-50 text-sky-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl shadow-inner">📊</div>
+            <h2 class="text-xl font-bold text-slate-900 mb-2">Cargar Archivo Excel o CSV</h2>
+            <p class="text-sm text-slate-500 mb-6">Selecciona o arrastra el reporte general de avisos para generar automáticamente el análisis anual completo.</p>
+            
+            <label class="border-2 border-dashed border-slate-300 hover:border-sky-500 rounded-xl p-8 block cursor-pointer transition bg-slate-50/50 hover:bg-sky-50/30">
+                <span class="text-sm font-semibold text-sky-600 block mb-1">Examinar equipo (.xlsx, .xls, .csv)</span>
+                <span class="text-xs text-slate-400">Los datos se procesan 100% en tu navegador de forma segura.</span>
+                <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" class="hidden">
+            </label>
+            <div id="loadingMsg" class="hidden mt-4 text-sm font-medium text-sky-600 animate-pulse">Procesando información...</div>
+        </div>
+
+        <!-- Contenedor del Reporte (Oculto hasta cargar datos) -->
+        <div id="reportContainer" class="hidden space-y-8">
+            
+            <!-- Navegación interna del Reporte -->
+            <nav class="bg-white rounded-xl shadow-sm border border-slate-200 px-6 py-3 flex flex-wrap gap-4 text-xs font-semibold text-slate-600 no-print items-center justify-between">
+                <div class="flex flex-wrap gap-3">
+                    <a href="#resumen" class="hover:text-sky-600 transition">Resumen Ejecutivo</a>
+                    <a href="#clientes" class="hover:text-sky-600 transition">Por Cliente</a>
+                    <a href="#tipos" class="hover:text-sky-600 transition">Por Tipo</a>
+                    <a href="#creadores" class="hover:text-sky-600 transition">Por Creador</a>
+                    <a href="#evolucion" class="hover:text-sky-600 transition">Evolución Mensual</a>
+                    <a href="#gestion" class="hover:text-sky-600 transition">Estado de Gestión</a>
+                    <a href="#detalle" class="hover:text-sky-600 transition">Detalle Completo</a>
+                </div>
+            </nav>
+
+            <!-- Filtros Interactivos -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 no-print space-y-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Filtros Interactivos</h3>
+                    <button onclick="clearFilters()" class="text-xs font-semibold text-sky-600 hover:text-sky-700 bg-sky-50 px-3 py-1.5 rounded-lg transition">Limpiar Filtros</button>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                    <input type="text" id="globalSearch" placeholder="Buscar general..." class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-sky-500" oninput="debounceApplyFilters()">
+                    <select id="filterClient" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-sky-500" onchange="applyFilters()"><option value="">Todos los clientes</option></select>
+                    <select id="filterType" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-sky-500" onchange="applyFilters()"><option value="">Todos los tipos</option></select>
+                    <select id="filterStatus" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-sky-500" onchange="applyFilters()">
+                        <option value="">Todos los estados</option>
+                        <option value="CERRADO">Cerrado</option>
+                        <option value="ABIERTO / PENDIENTE">Abierto / Pendiente</option>
+                    </select>
+                    <select id="filterCreator" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-sky-500" onchange="applyFilters()"><option value="">Todos los creadores</option></select>
+                    <select id="filterYear" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-sky-500" onchange="applyFilters()"><option value="">Todos los años</option></select>
+                    <select id="filterMonth" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-sky-500" onchange="applyFilters()"><option value="">Todos los meses</option></select>
+                </div>
+            </div>
+
+            <!-- PORTADA / RESUMEN EJECUTIVO -->
+            <section id="resumen" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 print-shadow page-break">
+                <div class="border-b border-slate-100 pb-6 mb-6 flex justify-between items-start">
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-widest text-sky-600 bg-sky-50 px-3 py-1 rounded-full">Informe Anual</span>
+                        <h2 class="text-3xl font-black text-slate-900 mt-2">REPORTE DE GESTIÓN DE RECLAMOS</h2>
+                        <p id="periodSubtitle" class="text-sm font-medium text-slate-500 mt-1">Período analizado: Cargando...</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs font-semibold text-slate-400">MAINCAL S.A.</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Supply Chain y Servicio al Cliente</p>
+                    </div>
+                </div>
+
+                <!-- Tarjetas de Resumen General -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4 flex flex-col justify-between">
+                        <span class="text-xs font-semibold text-slate-500 uppercase">Total Reclamos</span>
+                        <span id="cardTotal" class="text-3xl font-black text-slate-900 mt-2">0</span>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4 flex flex-col justify-between">
+                        <span class="text-xs font-semibold text-slate-500 uppercase">Cerrados</span>
+                        <div class="flex items-baseline gap-2 mt-2">
+                            <span id="cardClosed" class="text-3xl font-black text-emerald-600">0</span>
+                            <span id="cardClosedPct" class="text-xs font-bold text-emerald-500">0%</span>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4 flex flex-col justify-between">
+                        <span class="text-xs font-semibold text-slate-500 uppercase">Abiertos / Pendientes</span>
+                        <span id="cardPending" class="text-3xl font-black text-amber-500 mt-2">0</span>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4 flex flex-col justify-between">
+                        <span class="text-xs font-semibold text-slate-500 uppercase">Cantidad Reclamada</span>
+                        <span id="cardQty" class="text-3xl font-black text-slate-900 mt-2">0</span>
+                        <span class="text-xs text-slate-400 mt-0.5">pares totales</span>
+                    </div>
+                </div>
+
+                <!-- Indicadores Secundarios -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-medium text-slate-600 bg-sky-50/50 border border-sky-100 rounded-xl p-4">
+                    <div>📅 <span class="font-bold">Fechas:</span> <span id="infoDates">-</span></div>
+                    <div>🏢 <span class="font-bold">Clientes Involucrados:</span> <span id="infoClientsCount">0</span></div>
+                    <div>👥 <span class="font-bold">Creadores de Avisos:</span> <span id="infoCreatorsCount">0</span></div>
+                </div>
+            </section>
+
+            <!-- REPORTE POR CLIENTE -->
+            <section id="clientes" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 print-shadow page-break">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 class="text-xl font-extrabold text-slate-900">Reporte por Cliente</h3>
+                        <p class="text-xs text-slate-500">Agrupado por la columna F (Nombre de lista). Haz clic en un cliente para ver su detalle específico.</p>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wider font-semibold border-b border-slate-200">
+                                <th class="p-3">Cliente</th>
+                                <th class="p-3 text-center">Reclamos</th>
+                                <th class="p-3 text-center">Cerrados</th>
+                                <th class="p-3 text-center">Abiertos</th>
+                                <th class="p-3 text-center">% Cierre</th>
+                                <th class="p-3 text-right">Cant. Reclamada</th>
+                                <th class="p-3 text-center no-print">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientsTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- DETALLE DE CLIENTE SELECCIONADO (MODAL / VISTA) -->
+            <div id="clientDetailModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+                <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+                    <div class="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                        <div>
+                            <span class="text-xs font-bold text-sky-600 uppercase tracking-wider">Detalle por Cliente</span>
+                            <h3 id="modalClientTitle" class="text-xl font-black text-slate-900 mt-1">Cliente</h3>
+                        </div>
+                        <button onclick="closeClientModal()" class="text-slate-400 hover:text-slate-700 text-xl font-bold p-2 cursor-pointer">✕</button>
+                    </div>
+                    <div class="p-6 overflow-y-auto space-y-6 flex-grow">
+                        <div id="modalClientSummary" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                                    <tr>
+                                        <th class="p-3">Aviso</th>
+                                        <th class="p-3">Fecha</th>
+                                        <th class="p-3">Tipo</th>
+                                        <th class="p-3">Descripción</th>
+                                        <th class="p-3">Creador</th>
+                                        <th class="p-3 text-center">Cant.</th>
+                                        <th class="p-3 text-center">Estado</th>
+                                        <th class="p-3">Cierre</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modalClientTableBody" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- REPORTE POR TIPO DE RECLAMO -->
+            <section id="tipos" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 print-shadow page-break">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                    <div>
+                        <h3 class="text-xl font-extrabold text-slate-900 mb-1">Reporte por Tipo de Reclamo</h3>
+                        <p class="text-xs text-slate-500 mb-6">Agrupado por la columna F (Nombre de lista).</p>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wider font-semibold border-b border-slate-200">
+                                        <th class="p-3">Tipo de Reclamo</th>
+                                        <th class="p-3 text-center">Reclamos</th>
+                                        <th class="p-3 text-center">Cerrados</th>
+                                        <th class="p-3 text-center">Abiertos</th>
+                                        <th class="p-3 text-center">% Cierre</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="typesTableBody" class="divide-y divide-slate-100 text-xs"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50/50 p-6 rounded-xl border border-slate-200 flex flex-col justify-center" style="height: 320px;">
+                        <canvas id="typesChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- REPORTE POR CREADOR -->
+            <section id="creadores" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 print-shadow page-break">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                    <div>
+                        <h3 class="text-xl font-extrabold text-slate-900 mb-1">Reporte por Creador</h3>
+                        <p class="text-xs text-slate-500 mb-6">Utiliza la columna P (Creado por).</p>
+                        <div class="overflow-x-auto max-h-80 overflow-y-auto">
+                            <table class="w-full text-left border-collapse text-sm">
+                                <thead class="sticky top-0 bg-slate-50">
+                                    <tr class="text-slate-600 text-xs uppercase tracking-wider font-semibold border-b border-slate-200">
+                                        <th class="p-3">Creador</th>
+                                        <th class="p-3 text-center">Generados</th>
+                                        <th class="p-3 text-center">Cerrados</th>
+                                        <th class="p-3 text-center">Abiertos</th>
+                                        <th class="p-3 text-center">% Cierre</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="creatorsTableBody" class="divide-y divide-slate-100 text-xs"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50/50 p-6 rounded-xl border border-slate-200 flex flex-col justify-center" style="height: 320px;">
+                        <canvas id="creatorsChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- EVOLUCIÓN MENSUAL -->
+            <section id="evolucion" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 print-shadow page-break">
+                <h3 class="text-xl font-extrabold text-slate-900 mb-1">Evolución Mensual</h3>
+                <p class="text-xs text-slate-500 mb-6">Agrupado cronológicamente por la fecha de creación (Q - Creado el).</p>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <div class="bg-slate-50/50 p-6 rounded-xl border border-slate-200" style="height: 280px;">
+                        <canvas id="monthlyChart"></canvas>
+                    </div>
+                    <div class="bg-slate-50/50 p-6 rounded-xl border border-slate-200" style="height: 280px;">
+                        <canvas id="monthlyStatusChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wider font-semibold border-b border-slate-200">
+                                <th class="p-3">Mes</th>
+                                <th class="p-3 text-center">Reclamos</th>
+                                <th class="p-3 text-center">Cerrados</th>
+                                <th class="p-3 text-center">Abiertos</th>
+                                <th class="p-3 text-right">Cantidad Reclamada</th>
+                            </tr>
+                        </thead>
+                        <tbody id="monthlyTableBody" class="divide-y divide-slate-100 text-xs"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ESTADO DE GESTIÓN & TIEMPOS -->
+            <section id="gestion" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 print-shadow page-break">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                    <div>
+                        <h3 class="text-xl font-extrabold text-slate-900 mb-1">Estado de Gestión</h3>
+                        <p class="text-xs text-slate-500 mb-6">Distribución de estados y tiempos de resolución (calculado únicamente para reclamos cerrados con fecha válida).</p>
+                        
+                        <div class="grid grid-cols-3 gap-4 mb-6">
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center">
+                                <span class="text-xs text-slate-500 uppercase block font-semibold">Promedio Días</span>
+                                <span id="avgDays" class="text-2xl font-black text-slate-900 mt-1 block">-</span>
+                            </div>
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center">
+                                <span class="text-xs text-slate-500 uppercase block font-semibold">Mínimo Días</span>
+                                <span id="minDays" class="text-2xl font-black text-emerald-600 mt-1 block">-</span>
+                            </div>
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center">
+                                <span class="text-xs text-slate-500 uppercase block font-semibold">Máximo Días</span>
+                                <span id="maxDays" class="text-2xl font-black text-amber-600 mt-1 block">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50/50 p-6 rounded-xl border border-slate-200 flex flex-col justify-center items-center" style="height: 300px;">
+                        <canvas id="statusDonutChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ANÁLISIS DE DESCRIPCIONES -->
+            <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 print-shadow page-break">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h3 class="text-xl font-extrabold text-slate-900">Análisis de Descripciones</h3>
+                        <p class="text-xs text-slate-500">Agrupación de problemas y reclamos frecuentes según la columna G.</p>
+                    </div>
+                    <input type="text" id="descSearch" placeholder="Filtrar descripciones..." class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-sky-500 w-64" oninput="debounceFilterDescriptionsTable()">
+                </div>
+                <div class="overflow-x-auto max-h-80 overflow-y-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="sticky top-0 bg-slate-50">
+                            <tr class="text-slate-600 uppercase tracking-wider font-semibold border-b border-slate-200">
+                                <th class="p-3">Descripción / Motivo del Reclamo</th>
+                                <th class="p-3 text-center w-32">Cantidad</th>
+                            </tr>
+                        </thead>
+                        <tbody id="descriptionsTableBody" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- DETALLE COMPLETO DE RECLAMOS (TABLA PAGINADA) -->
+            <section id="detalle" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 print-shadow page-break">
+                <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+                    <div>
+                        <h3 class="text-xl font-extrabold text-slate-900">Detalle Completo de Reclamos</h3>
+                        <p class="text-xs text-slate-500">Listado completo de registros procesados.</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span id="paginationInfo" class="text-xs text-slate-500 font-medium">Mostrando 0 de 0</span>
+                        <div class="flex gap-1">
+                            <button onclick="prevPage()" class="bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 transition">Anterior</button>
+                            <button onclick="nextPage()" class="bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 transition">Siguiente</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-600 uppercase tracking-wider font-semibold border-b border-slate-200">
+                                <th class="p-3">Aviso</th>
+                                <th class="p-3">Cliente</th>
+                                <th class="p-3">Fecha Creación</th>
+                                <th class="p-3">Tipo</th>
+                                <th class="p-3">Descripción</th>
+                                <th class="p-3">Material</th>
+                                <th class="p-3 text-center">Cant.</th>
+                                <th class="p-3">Creador</th>
+                                <th class="p-3 text-center">Estado</th>
+                                <th class="p-3">Fecha Cierre</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fullTableBody" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-400 no-print">
+        MAINCAL S.A. • Generador Automático de Reportes de Logística y Servicio al Cliente
+    </footer>
+
+    <!-- Contenedor del PDF (solo visible al imprimir/exportar) -->
+    <div id="pdfRoot"></div>
+
+    <!-- SCRIPT DE PROCESAMIENTO Y LÓGICA OPTIMIZADO -->
+    <script>
+        const monthNames = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+        let rawData = [];
+        let filteredData = [];
+        let currentPage = 1;
+        const pageSize = 25;
+        let charts = {};
+        let debounceTimer = null;
+        let descDebounceTimer = null;
+
+        document.getElementById('excelFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('loadingMsg').classList.remove('hidden');
+
+            setTimeout(() => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheet];
+                        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        
+                        processExcelRows(rows);
+                    } catch (err) {
+                        alert('Error al procesar el archivo. Asegúrate de que sea un Excel o CSV válido.');
+                        console.error(err);
+                        document.getElementById('loadingMsg').classList.add('hidden');
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }, 50);
+        });
+
+        function parseExcelDate(val) {
+            if (!val) return null;
+            if (typeof val === 'number') {
+                const d = XLSX.SSF.parse_date_code(val);
+                if (!d) return null;
+                return new Date(d.y, d.m - 1, d.d);
+            }
+            if (typeof val === 'string') {
+                let parts = val.split(/[\/\-]/);
+                if (parts.length === 3) {
+                    if (parts[0].length === 4) {
+                        let d = new Date(val);
+                        return isNaN(d.getTime()) ? null : d;
+                    } else {
+                        let d = new Date(parts[2], parts[1] - 1, parts[0]);
+                        return isNaN(d.getTime()) ? null : d;
+                    }
+                }
+                let d = new Date(val);
+                return isNaN(d.getTime()) ? null : d;
+            }
+            return null;
+        }
+
+        function processExcelRows(rows) {
+            if (rows.length < 2) {
+                alert('El archivo está vacío.');
+                document.getElementById('loadingMsg').classList.add('hidden');
+                return;
+            }
+
+            let records = [];
+            for (let i = 1; i < rows.length; i++) {
+                let r = rows[i];
+                if (!r || r.length === 0) continue;
+
+                let aviso = r[2] !== undefined && r[2] !== null ? r[2].toString().trim() : 'S/A';
+                if (aviso === '' || aviso === 'S/A') continue;
+
+                let tipo = r[5] !== undefined && r[5] !== null && r[5] !== '' ? r[5].toString().trim() : (r[4] !== undefined ? r[4].toString().trim() : 'SIN TIPO');
+                let desc = r[6] !== undefined && r[6] !== null && r[6] !== '' ? r[6].toString().trim() : 'SIN DESCRIPCIÓN';
+                let material = r[7] !== undefined && r[7] !== null ? r[7].toString().trim() : '';
+                let matText = r[8] !== undefined && r[8] !== null ? r[8].toString().trim() : '';
+                let cant = parseFloat(r[12]);
+                if (isNaN(cant)) cant = 0;
+
+                let creador = r[15] !== undefined && r[15] !== null && r[15] !== '' ? r[15].toString().trim() : 'SIN INFORMACIÓN';
+                let fechaCreado = parseExcelDate(r[16]);
+                let cliente = r[5] !== undefined && r[5] !== null && r[5] !== '' ? r[5].toString().trim() : 'SIN CLIENTE';
+                let fechaCierre = parseExcelDate(r[18]);
+                let estado = fechaCierre ? 'CERRADO' : 'ABIERTO / PENDIENTE';
+
+                records.push({
+                    aviso: aviso,
+                    tipo: tipo,
+                    desc: desc,
+                    material: material ? `${material} - ${matText}` : matText,
+                    cantidad: cant,
+                    creador: creador,
+                    fechaCreado: fechaCreado,
+                    cliente: cliente,
+                    fechaCierre: fechaCierre,
+                    estado: estado,
+                    year: fechaCreado ? fechaCreado.getFullYear() : null,
+                    monthNum: fechaCreado ? fechaCreado.getMonth() : null,
+                    monthName: fechaCreado ? monthNames[fechaCreado.getMonth()] : null,
+                    searchStr: (aviso + ' ' + cliente + ' ' + desc + ' ' + (material ? `${material} - ${matText}` : matText) + ' ' + creador + ' ' + tipo).toLowerCase()
+                });
+            }
+
+            rawData = records;
+            filteredData = [...rawData];
+
+            if (rawData.length === 0) {
+                alert('No se encontraron registros válidos en las columnas indicadas.');
+                document.getElementById('loadingMsg').classList.add('hidden');
+                return;
+            }
+
+            document.getElementById('uploadCard').classList.add('hidden');
+            document.getElementById('reportContainer').classList.remove('hidden');
+            document.getElementById('printBtn').classList.remove('hidden');
+            document.getElementById('exportExcelBtn').classList.remove('hidden');
+            document.getElementById('resetFileBtn').classList.remove('hidden');
+
+            initFilters();
+            updateReport();
+            document.getElementById('loadingMsg').classList.add('hidden');
+        }
+
+        // NUEVA FUNCIÓN PARA EXPORTAR A EXCEL LOS DATOS FILTRADOS
+        function exportToExcel() {
+            if (!filteredData || filteredData.length === 0) {
+                alert('No hay datos para exportar.');
+                return;
+            }
+
+            // Mapear los datos limpios a un formato tabular amigable para Excel
+            const exportRows = filteredData.map(r => ({
+                'Aviso': r.aviso,
+                'Cliente': r.cliente,
+                'Fecha Creación': r.fechaCreado ? r.fechaCreado.toLocaleDateString('es-AR') : '',
+                'Tipo de Reclamo': r.tipo,
+                'Descripción': r.desc,
+                'Material': r.material,
+                'Cantidad': r.cantidad,
+                'Creador': r.creador,
+                'Estado': r.estado,
+                'Fecha Cierre': r.fechaCierre ? r.fechaCierre.toLocaleDateString('es-AR') : 'PENDIENTE'
+            }));
+
+            // Crear la hoja de trabajo y el libro usando SheetJS
+            const worksheet = XLSX.utils.json_to_sheet(exportRows);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Reclamos Filtrados");
+
+            // Generar nombre de archivo con la fecha actual
+            const fechaStr = new Date().toISOString().slice(0, 10);
+            XLSX.writeFile(workbook, `Reporte_Reclamos_${fechaStr}.xlsx`);
+        }
+
+        function initFilters() {
+            let clients = [...new Set(rawData.map(r => r.cliente))].sort();
+            let types = [...new Set(rawData.map(r => r.tipo))].sort();
+            let creators = [...new Set(rawData.map(r => r.creador))].sort();
+            let years = [...new Set(rawData.map(r => r.year).filter(y => y !== null))].sort((a,b)=>a-b);
+
+            fillSelect('filterClient', clients);
+            fillSelect('filterType', types);
+            fillSelect('filterCreator', creators);
+            fillSelect('filterYear', years);
+
+            let monthSelect = document.getElementById('filterMonth');
+            monthSelect.innerHTML = '<option value="">Todos los meses</option>';
+            monthNames.forEach((m, idx) => {
+                monthSelect.innerHTML += `<option value="${idx}">${m}</option>`;
+            });
+        }
+
+        function fillSelect(id, items) {
+            let sel = document.getElementById(id);
+            let current = sel.value;
+            sel.innerHTML = `<option value="">Todos</option>`;
+            items.forEach(i => {
+                sel.innerHTML += `<option value="${i}">${i}</option>`;
+            });
+            sel.value = current;
+        }
+
+        function debounceApplyFilters() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                applyFilters();
+            }, 200);
+        }
+
+        function applyFilters() {
+            let sText = document.getElementById('globalSearch').value.toLowerCase().trim();
+            let fClient = document.getElementById('filterClient').value;
+            let fType = document.getElementById('filterType').value;
+            let fStatus = document.getElementById('filterStatus').value;
+            let fCreator = document.getElementById('filterCreator').value;
+            let fYear = document.getElementById('filterYear').value;
+            let fMonth = document.getElementById('filterMonth').value;
+
+            filteredData = rawData.filter(r => {
+                if (fClient && r.cliente !== fClient) return false;
+                if (fType && r.tipo !== fType) return false;
+                if (fStatus && r.estado !== fStatus) return false;
+                if (fCreator && r.creador !== fCreator) return false;
+                if (fYear && r.year != fYear) return false;
+                if (fMonth !== "" && r.monthNum != fMonth) return false;
+
+                if (sText && !r.searchStr.includes(sText)) return false;
+
+                return true;
+            });
+
+            currentPage = 1;
+            updateReport();
+        }
+
+        function clearFilters() {
+            document.getElementById('globalSearch').value = '';
+            document.getElementById('filterClient').value = '';
+            document.getElementById('filterType').value = '';
+            document.getElementById('filterStatus').value = '';
+            document.getElementById('filterCreator').value = '';
+            document.getElementById('filterYear').value = '';
+            document.getElementById('filterMonth').value = '';
+            filteredData = [...rawData];
+            currentPage = 1;
+            updateReport();
+        }
+
+        function updateReport() {
+            renderSummaryCards();
+            renderClientsTable();
+            renderTypesSection();
+            renderCreatorsSection();
+            renderMonthlySection();
+            renderGestionSection();
+            renderDescriptionsTable();
+            renderFullTable();
+        }
+
+        function renderSummaryCards() {
+            let total = filteredData.length;
+            let closed = 0;
+            let totalQty = 0;
+            let clientsSet = new Set();
+            let creatorsSet = new Set();
+            let minTime = Infinity;
+            let maxTime = -Infinity;
+
+            for (let i = 0; i < total; i++) {
+                let r = filteredData[i];
+                if (r.estado === 'CERRADO') closed++;
+                totalQty += r.cantidad;
+                clientsSet.add(r.cliente);
+                creatorsSet.add(r.creador);
+                if (r.fechaCreado) {
+                    let t = r.fechaCreado.getTime();
+                    if (t < minTime) minTime = t;
+                    if (t > maxTime) maxTime = t;
+                }
+            }
+
+            let pending = total - closed;
+            let closedPct = total > 0 ? Math.round((closed / total) * 100) : 0;
+
+            document.getElementById('cardTotal').innerText = total;
+            document.getElementById('cardClosed').innerText = closed;
+            document.getElementById('cardClosedPct').innerText = `${closedPct}%`;
+            document.getElementById('cardPending').innerText = pending;
+            document.getElementById('cardQty').innerText = totalQty.toLocaleString('es-AR');
+
+            document.getElementById('infoClientsCount').innerText = clientsSet.size;
+            document.getElementById('infoCreatorsCount').innerText = creatorsSet.size;
+
+            if (minTime !== Infinity && maxTime !== -Infinity) {
+                let minDate = new Date(minTime);
+                let maxDate = new Date(maxTime);
+                document.getElementById('infoDates').innerText = `${minDate.toLocaleDateString('es-AR')} al ${maxDate.toLocaleDateString('es-AR')}`;
+                document.getElementById('periodSubtitle').innerText = `Período analizado: ${minDate.toLocaleDateString('es-AR')} al ${maxDate.toLocaleDateString('es-AR')}`;
+            } else {
+                document.getElementById('infoDates').innerText = 'Sin fechas válidas';
+                document.getElementById('periodSubtitle').innerText = 'Período analizado: General';
+            }
+        }
+
+        function renderClientsTable() {
+            let map = {};
+            for (let i = 0; i < filteredData.length; i++) {
+                let r = filteredData[i];
+                let c = r.cliente;
+                if (!map[c]) {
+                    map[c] = { total: 0, closed: 0, pending: 0, qty: 0 };
+                }
+                map[c].total++;
+                if (r.estado === 'CERRADO') map[c].closed++;
+                else map[c].pending++;
+                map[c].qty += r.cantidad;
+            }
+
+            let clientList = Object.keys(map).map(c => ({
+                name: c,
+                ...map[c],
+                pct: Math.round((map[c].closed / map[c].total) * 100)
+            })).sort((a, b) => b.total - a.total);
+
+            let tbody = document.getElementById('clientsTableBody');
+            if (clientList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-400">No hay registros para mostrar.</td></tr>`;
+                return;
+            }
+
+            let html = '';
+            for (let i = 0; i < clientList.length; i++) {
+                let c = clientList[i];
+                html += `
+                    <tr class="hover:bg-slate-50 transition cursor-pointer" onclick="openClientDetail('${c.name.replace(/'/g, "\\'")}')">
+                        <td class="p-3 font-semibold text-slate-900">${c.name}</td>
+                        <td class="p-3 text-center font-bold">${c.total}</td>
+                        <td class="p-3 text-center text-emerald-600 font-semibold">${c.closed}</td>
+                        <td class="p-3 text-center text-amber-500 font-semibold">${c.pending}</td>
+                        <td class="p-3 text-center"><span class="bg-slate-100 text-slate-800 text-xs font-bold px-2 py-1 rounded">${c.pct}%</span></td>
+                        <td class="p-3 text-right font-medium">${c.qty.toLocaleString('es-AR')}</td>
+                        <td class="p-3 text-center no-print text-sky-600 font-semibold hover:underline">Ver Detalle →</td>
+                    </tr>
+                `;
+            }
+            tbody.innerHTML = html;
+        }
+
+        function openClientDetail(clientName) {
+            document.getElementById('modalClientTitle').innerText = `Cliente: ${clientName}`;
+            let clientRecords = filteredData.filter(r => r.cliente === clientName);
+            
+            let total = clientRecords.length;
+            let closed = clientRecords.filter(r => r.estado === 'CERRADO').length;
+            let pending = total - closed;
+            let pct = total > 0 ? Math.round((closed / total) * 100) : 0;
+            let qty = clientRecords.reduce((acc, r) => acc + r.cantidad, 0);
+
+            document.getElementById('modalClientSummary').innerHTML = `
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200"><span class="text-xs text-slate-500 block">Total</span><span class="text-xl font-bold">${total}</span></div>
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200"><span class="text-xs text-slate-500 block">Cerrados</span><span class="text-xl font-bold text-emerald-600">${closed} (${pct}%)</span></div>
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200"><span class="text-xs text-slate-500 block">Abiertos</span><span class="text-xl font-bold text-amber-500">${pending}</span></div>
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200"><span class="text-xs text-slate-500 block">Cant. Reclamada</span><span class="text-xl font-bold">${qty.toLocaleString('es-AR')}</span></div>
+            `;
+
+            let mBody = document.getElementById('modalClientTableBody');
+            let html = '';
+            for (let i = 0; i < clientRecords.length; i++) {
+                let r = clientRecords[i];
+                let fCre = r.fechaCreado ? r.fechaCreado.toLocaleDateString('es-AR') : '-';
+                let fCie = r.fechaCierre ? r.fechaCierre.toLocaleDateString('es-AR') : 'PENDIENTE';
+                let badgeClass = r.estado === 'CERRADO' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800';
+                html += `
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-2 font-mono font-bold">${r.aviso}</td>
+                        <td class="p-2">${fCre}</td>
+                        <td class="p-2">${r.tipo}</td>
+                        <td class="p-2">${r.desc}</td>
+                        <td class="p-2">${r.creador}</td>
+                        <td class="p-2 text-center font-bold">${r.cantidad}</td>
+                        <td class="p-2 text-center"><span class="${badgeClass} text-[10px] font-bold px-2 py-0.5 rounded">${r.estado}</span></td>
+                        <td class="p-2">${fCie}</td>
+                    </tr>
+                `;
+            }
+            mBody.innerHTML = html;
+            document.getElementById('clientDetailModal').classList.remove('hidden');
+        }
+
+        function closeClientModal() {
+            document.getElementById('clientDetailModal').classList.add('hidden');
+        }
+
+        function renderTypesSection() {
+            let map = {};
+            for (let i = 0; i < filteredData.length; i++) {
+                let r = filteredData[i];
+                let t = r.tipo;
+                if (!map[t]) map[t] = { total: 0, closed: 0, pending: 0 };
+                map[t].total++;
+                if (r.estado === 'CERRADO') map[t].closed++;
+                else map[t].pending++;
+            }
+
+            let typeList = Object.keys(map).map(t => ({
+                name: t,
+                ...map[t],
+                pct: Math.round((map[t].closed / map[t].total) * 100)
+            })).sort((a, b) => b.total - a.total);
+
+            let tbody = document.getElementById('typesTableBody');
+            let html = '';
+            for (let i = 0; i < typeList.length; i++) {
+                let t = typeList[i];
+                html += `
+                    <tr>
+                        <td class="p-3 font-semibold text-slate-900">${t.name}</td>
+                        <td class="p-3 text-center font-bold">${t.total}</td>
+                        <td class="p-3 text-center text-emerald-600">${t.closed}</td>
+                        <td class="p-3 text-center text-amber-500">${t.pending}</td>
+                        <td class="p-3 text-center"><span class="bg-slate-100 text-xs font-bold px-2 py-1 rounded">${t.pct}%</span></td>
+                    </tr>
+                `;
+            }
+            tbody.innerHTML = html;
+
+            let ctx = document.getElementById('typesChart').getContext('2d');
+            if (charts.types) charts.types.destroy();
+            charts.types = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: typeList.map(t => t.name),
+                    datasets: [{
+                        label: 'Reclamos',
+                        data: typeList.map(t => t.total),
+                        backgroundColor: '#0284c7',
+                        borderRadius: 6,
+                        barThickness: 24
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+                        x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        function renderCreatorsSection() {
+            let map = {};
+            for (let i = 0; i < filteredData.length; i++) {
+                let r = filteredData[i];
+                let c = r.creador;
+                if (!map[c]) map[c] = { total: 0, closed: 0, pending: 0 };
+                map[c].total++;
+                if (r.estado === 'CERRADO') map[c].closed++;
+                else map[c].pending++;
+            }
+
+            let creatorList = Object.keys(map).map(c => ({
+                name: c,
+                ...map[c],
+                pct: Math.round((map[c].closed / map[c].total) * 100)
+            })).sort((a, b) => b.total - a.total);
+
+            let tbody = document.getElementById('creatorsTableBody');
+            let html = '';
+            for (let i = 0; i < creatorList.length; i++) {
+                let c = creatorList[i];
+                html += `
+                    <tr>
+                        <td class="p-3 font-semibold text-slate-900">${c.name}</td>
+                        <td class="p-3 text-center font-bold">${c.total}</td>
+                        <td class="p-3 text-center text-emerald-600">${c.closed}</td>
+                        <td class="p-3 text-center text-amber-500">${c.pending}</td>
+                        <td class="p-3 text-center"><span class="bg-slate-100 text-xs font-bold px-2 py-1 rounded">${c.pct}%</span></td>
+                    </tr>
+                `;
+            }
+            tbody.innerHTML = html;
+
+            let ctx = document.getElementById('creatorsChart').getContext('2d');
+            if (charts.creators) charts.creators.destroy();
+            charts.creators = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: creatorList.map(c => c.name),
+                    datasets: [{
+                        label: 'Generados',
+                        data: creatorList.map(c => c.total),
+                        backgroundColor: '#0f172a',
+                        borderRadius: 6,
+                        barThickness: 24
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+                        x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        function renderMonthlySection() {
+            let monthlyMap = {};
+            monthNames.forEach((m, idx) => {
+                monthlyMap[idx] = { name: m, total: 0, closed: 0, pending: 0, qty: 0 };
+            });
+
+            for (let i = 0; i < filteredData.length; i++) {
+                let r = filteredData[i];
+                if (r.monthNum !== null && monthlyMap[r.monthNum]) {
+                    monthlyMap[r.monthNum].total++;
+                    if (r.estado === 'CERRADO') monthlyMap[r.monthNum].closed++;
+                    else monthlyMap[r.monthNum].pending++;
+                    monthlyMap[r.monthNum].qty += r.cantidad;
+                }
+            }
+
+            let monthlyArray = Object.values(monthlyMap);
+            let tbody = document.getElementById('monthlyTableBody');
+            let html = '';
+            for (let i = 0; i < monthlyArray.length; i++) {
+                let m = monthlyArray[i];
+                html += `
+                    <tr>
+                        <td class="p-3 font-semibold text-slate-900">${m.name}</td>
+                        <td class="p-3 text-center font-bold">${m.total}</td>
+                        <td class="p-3 text-center text-emerald-600">${m.closed}</td>
+                        <td class="p-3 text-center text-amber-500">${m.pending}</td>
+                        <td class="p-3 text-right font-medium">${m.qty.toLocaleString('es-AR')}</td>
+                    </tr>
+                `;
+            }
+            tbody.innerHTML = html;
+
+            let labels = monthNames;
+            let totals = monthlyArray.map(m => m.total);
+            let closedArr = monthlyArray.map(m => m.closed);
+            let pendingArr = monthlyArray.map(m => m.pending);
+
+            let ctx1 = document.getElementById('monthlyChart').getContext('2d');
+            if (charts.monthly) charts.monthly.destroy();
+            charts.monthly = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Reclamos por Mes',
+                        data: totals,
+                        backgroundColor: '#0284c7',
+                        borderRadius: 6,
+                        barThickness: 20
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } }
+                }
+            });
+
+            let ctx2 = document.getElementById('monthlyStatusChart').getContext('2d');
+            if (charts.monthlyStatus) charts.monthlyStatus.destroy();
+            charts.monthlyStatus = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Cerrados', data: closedArr, backgroundColor: '#10b981', borderRadius: 4 },
+                        { label: 'Abiertos', data: pendingArr, backgroundColor: '#f59e0b', borderRadius: 4 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, grid: { color: '#f1f5f9' } } }
+                }
+            });
+        }
+
+        function renderGestionSection() {
+            let total = filteredData.length;
+            let closed = 0;
+            let daysDiffs = [];
+
+            for (let i = 0; i < total; i++) {
+                let r = filteredData[i];
+                if (r.estado === 'CERRADO') closed++;
+                if (r.fechaCierre && r.fechaCreado) {
+                    let diffTime = r.fechaCierre - r.fechaCreado;
+                    let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    if (diffDays >= 0) daysDiffs.push(diffDays);
+                }
+            }
+            let pending = total - closed;
+
+            if (daysDiffs.length > 0) {
+                let sum = 0, min = daysDiffs[0], max = daysDiffs[0];
+                for (let i = 0; i < daysDiffs.length; i++) {
+                    sum += daysDiffs[i];
+                    if (daysDiffs[i] < min) min = daysDiffs[i];
+                    if (daysDiffs[i] > max) max = daysDiffs[i];
+                }
+                let avg = Math.round(sum / daysDiffs.length);
+
+                document.getElementById('avgDays').innerText = `${avg} días`;
+                document.getElementById('minDays').innerText = `${min} días`;
+                document.getElementById('maxDays').innerText = `${max} días`;
+            } else {
+                document.getElementById('avgDays').innerText = '-';
+                document.getElementById('minDays').innerText = '-';
+                document.getElementById('maxDays').innerText = '-';
+            }
+
+            let ctx = document.getElementById('statusDonutChart').getContext('2d');
+            if (charts.statusDonut) charts.statusDonut.destroy();
+            charts.statusDonut = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Cerrados', 'Abiertos / Pendientes'],
+                    datasets: [{
+                        data: [closed, pending],
+                        backgroundColor: ['#10b981', '#f59e0b'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    cutout: '65%'
+                }
+            });
+        }
+
+        let descCache = [];
+        function renderDescriptionsTable() {
+            let map = {};
+            for (let i = 0; i < filteredData.length; i++) {
+                let d = filteredData[i].desc;
+                map[d] = (map[d] || 0) + 1;
+            }
+
+            descCache = Object.keys(map).map(d => ({ desc: d, count: map[d] })).sort((a, b) => b.count - a.count);
+            displayDescriptionsTable(descCache);
+        }
+
+        function displayDescriptionsTable(items) {
+            let tbody = document.getElementById('descriptionsTableBody');
+            let html = '';
+            for (let i = 0; i < items.length; i++) {
+                html += `
+                    <tr>
+                        <td class="p-2 text-slate-800">${items[i].desc}</td>
+                        <td class="p-2 text-center font-bold">${items[i].count}</td>
+                    </tr>
+                `;
+            }
+            tbody.innerHTML = html;
+        }
+
+        function debounceFilterDescriptionsTable() {
+            clearTimeout(descDebounceTimer);
+            descDebounceTimer = setTimeout(() => {
+                filterDescriptionsTable();
+            }, 200);
+        }
+
+        function filterDescriptionsTable() {
+            let q = document.getElementById('descSearch').value.toLowerCase();
+            let filtered = descCache.filter(i => i.desc.toLowerCase().includes(q));
+            displayDescriptionsTable(filtered);
+        }
+
+        function renderFullTable() {
+            let tbody = document.getElementById('fullTableBody');
+            let start = (currentPage - 1) * pageSize;
+            let end = start + pageSize;
+            let pageItems = filteredData.slice(start, end);
+
+            document.getElementById('paginationInfo').innerText = `Mostrando ${filteredData.length > 0 ? start + 1 : 0} - ${Math.min(end, filteredData.length)} de ${filteredData.length}`;
+
+            let html = '';
+            for (let i = 0; i < pageItems.length; i++) {
+                let r = pageItems[i];
+                let fCre = r.fechaCreado ? r.fechaCreado.toLocaleDateString('es-AR') : '-';
+                let fCie = r.fechaCierre ? r.fechaCierre.toLocaleDateString('es-AR') : '-';
+                let badgeClass = r.estado === 'CERRADO' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800';
+
+                html += `
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-2 font-mono font-bold">${r.aviso}</td>
+                        <td class="p-2">${r.cliente}</td>
+                        <td class="p-2">${fCre}</td>
+                        <td class="p-2">${r.tipo}</td>
+                        <td class="p-2">${r.desc}</td>
+                        <td class="p-2">${r.material}</td>
+                        <td class="p-2 text-center font-bold">${r.cantidad}</td>
+                        <td class="p-2">${r.creador}</td>
+                        <td class="p-2 text-center"><span class="${badgeClass} text-[10px] font-bold px-2 py-0.5 rounded">${r.estado}</span></td>
+                        <td class="p-2">${fCie}</td>
+                    </tr>
+                `;
+            }
+            tbody.innerHTML = html;
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderFullTable();
+            }
+        }
+
+        function nextPage() {
+            if (currentPage * pageSize < filteredData.length) {
+                currentPage++;
+                renderFullTable();
+            }
+        }
+
+        /* ===== EXPORTACIÓN PDF — aislada, solo lee filteredData (no modifica datos ni lógica) ===== */
+        const PDF_MES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        const pdfEsc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        const pdfCap = s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+        const pdfNum = n => n.toLocaleString('es-AR');
+
+        function pdfGroup(key) {
+            const m = {};
+            filteredData.forEach(r => {
+                const o = m[r[key]] || (m[r[key]] = { name: r[key], total: 0, closed: 0, pending: 0, qty: 0 });
+                o.total++; if (r.estado === 'CERRADO') o.closed++; else o.pending++;
+                o.qty += r.cantidad;
+            });
+            return Object.values(m).sort((a, b) => b.total - a.total);
+        }
+
+        function buildPdfSlides() {
+            const root = document.getElementById('pdfRoot');
+            const T = filteredData.length;
+            if (!T) { root.innerHTML = ''; return false; }
+            const closed = filteredData.filter(r => r.estado === 'CERRADO').length, pend = T - closed;
+            const qty = filteredData.reduce((a, r) => a + r.cantidad, 0);
+            const types = pdfGroup('tipo'), clients = pdfGroup('cliente'), creators = pdfGroup('creador');
+            const pct = (n, t) => t > 0 ? Math.round(n / t * 100) : 0;
+            const p1 = (n, t) => t > 0 ? (n / t * 100).toFixed(1) : '0.0';
+            const p2 = (n, t) => t > 0 ? (n / t * 100).toFixed(2) : '0.00';
+
+            // Meses (agrupados año+mes, rellenando huecos)
+            const mm = {};
+            filteredData.forEach(r => { if (r.monthNum !== null) { const k = r.year * 12 + r.monthNum; mm[k] = (mm[k] || 0) + 1; } });
+            const keys = Object.keys(mm).map(Number).sort((a, b) => a - b);
+            const months = [];
+            for (let k = keys[0]; keys.length && k <= keys[keys.length - 1]; k++) months.push({ k, n: mm[k] || 0 });
+            const multiYear = keys.length > 0 && Math.floor(keys[0] / 12) !== Math.floor(keys[keys.length - 1] / 12);
+            months.forEach(m => {
+                m.label = PDF_MES[m.k % 12] + (multiYear ? ' ' + String(Math.floor(m.k / 12)).slice(2) : '');
+                m.full = pdfCap(monthNames[m.k % 12]) + (multiYear ? ' ' + Math.floor(m.k / 12) : '');
+            });
+            const peak = months.reduce((a, m) => (!a || m.n > a.n) ? m : a, null);
+            let period = 'General';
+            if (keys.length) {
+                const a = keys[0], b = keys[keys.length - 1], ya = Math.floor(a / 12), yb = Math.floor(b / 12);
+                const na = pdfCap(monthNames[a % 12]), nb = pdfCap(monthNames[b % 12]);
+                period = a === b ? `${na} ${ya}` : (ya === yb ? `${na} – ${nb} ${ya}` : `${na} ${ya} – ${nb} ${yb}`);
+            }
+
+            // Tiempos de resolución (misma regla que renderGestionSection)
+            const dd = [];
+            filteredData.forEach(r => {
+                if (r.fechaCierre && r.fechaCreado) { const d = Math.ceil((r.fechaCierre - r.fechaCreado) / 864e5); if (d >= 0) dd.push(d); }
+            });
+            const avg = dd.length ? Math.round(dd.reduce((a, b) => a + b, 0) / dd.length) : null;
+
+            const fc = document.getElementById('filterClient').value;
+            const cl = fc || (clients.length === 1 ? clients[0].name : 'Todos los clientes');
+            const now = pdfCap(new Date().toLocaleDateString('es-AR', { month: 'long' })) + ' ' + new Date().getFullYear();
+            const fmt = d => d ? d.toLocaleDateString('es-AR') : '-';
+
+            const S = []; let pg = 1;
+            const content = (title, body) => S.push(`<section class="pdf-slide pdf-light"><h2 class="pdf-h">${title}</h2><div class="pdf-body">${body}</div><div class="pdf-foot"><span>Reporte de Gestión de Reclamos — ${pdfEsc(cl)}</span><span>Página ${++pg}</span></div></section>`);
+            const table = (title, intro, cols, rows, per, withTotal) => {
+                const pages = Math.max(1, Math.ceil(rows.length / per));
+                for (let p = 0; p < pages; p++) {
+                    const al = c => `text-align:${c.a || 'left'}`;
+                    const head = cols.map(c => `<th style="width:${c.w};${al(c)}">${c.h}</th>`).join('');
+                    const tr = rows.slice(p * per, (p + 1) * per).map(r => '<tr>' + cols.map(c => `<td class="${c.cls || ''}" style="${al(c)}">${c.f(r)}</td>`).join('') + '</tr>').join('');
+                    const tot = (withTotal && p === pages - 1) ? '<tr class="pdf-tot">' + cols.map((c, i) => `<td style="${al(c)}">${i === 0 ? 'Total' : (c.t ? c.t() : '')}</td>`).join('') + '</tr>' : '';
+                    content(title + (pages > 1 ? ` <small>(${p + 1}/${pages})</small>` : ''), `<p class="pdf-intro">${intro}</p><table class="pdf-tbl"><thead><tr>${head}</tr></thead><tbody>${tr}${tot}</tbody></table>`);
+                }
+            };
+            const ic = {
+                ok: '<svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="11" fill="#0284c7"/><path d="M7 12.5l3.2 3.2L17 9" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+                ch: '<svg viewBox="0 0 24 24" width="24" height="24"><path d="M3 3v18h18M7 15l4-5 3 3 6-7" stroke="#0284c7" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+                ck: '<svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="9.5" stroke="#0284c7" stroke-width="2.2" fill="none"/><path d="M12 6.5V12l3.5 2" stroke="#0284c7" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg>',
+                v: '<svg viewBox="0 0 24 24" width="24" height="24"><path d="M4 12.5l5 5L20 6.5" stroke="#0b2447" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+            };
+
+            // 1. Portada
+            S.push(`<section class="pdf-slide pdf-dark"><div class="pdf-cover-card"><div class="pdf-brand">MAINCAL</div><div class="pdf-title">Reporte de Gestión<br>de Reclamos</div><div class="pdf-sub">Cliente: ${pdfEsc(cl)}</div><div class="pdf-meta"><span>${pdfEsc(period)}</span><span>Supply Chain y Servicio al Cliente</span></div></div><div class="pdf-foot"><span>MAINCAL S.A.</span><span>${now}</span></div></section>`);
+
+            // 2. Resumen ejecutivo
+            const t0 = types[0], t1 = types[1];
+            let b = `<p>${ic.ok}<span><b>Predominio de ${pdfEsc(t0.name)}:</b> Representa el ${p2(t0.total, T)}% de los reclamos (${t0.total} casos)${t1 ? `, seguido por ${pdfEsc(t1.name)} con ${t1.total} casos (${p2(t1.total, T)}%).` : '.'}</span></p>`;
+            if (peak) b += `<p>${ic.ch}<span><b>Concentración Temporal:</b> ${pdfEsc(peak.full)} concentró la mayor cantidad de reclamos del período (${peak.n} de ${T} casos).</span></p>`;
+            b += `<p>${ic.ck}<span><b>Gestión de Cierre:</b> ${closed} de ${T} reclamos cerrados (${p1(closed, T)}%)${avg !== null ? `; tiempo promedio de resolución de ${avg} días (mínimo ${Math.min(...dd)}, máximo ${Math.max(...dd)}).` : '.'}</span></p>`;
+            content('Resumen Ejecutivo', `<div class="pdf-kpis"><div class="pdf-kpi"><b>${T}</b><span>Reclamos Totales</span></div><div class="pdf-kpi hl"><b style="color:#0284c7">${closed}</b><span>Cerrados (${p1(closed, T)}%)</span></div><div class="pdf-kpi"><b style="color:#d97706">${pend}</b><span>Abiertos / Pendientes</span></div><div class="pdf-kpi"><b>${pdfNum(qty)}</b><span>Cantidad Reclamada (pares)</span></div></div><div class="pdf-box">${b}</div>`);
+
+            // 3. Por tipo (donut + tarjetas)
+            const items = types.length <= 4 ? types.slice() : types.slice(0, 3).concat([types.slice(3).reduce((o, t) => ({ name: `Otros (${types.length - 3} tipos)`, total: o.total + t.total, closed: o.closed + t.closed, pending: o.pending + t.pending }), { total: 0, closed: 0, pending: 0 })]);
+            const cols4 = ['#0b2447', '#0284c7', '#38bdf8', '#cbd5e1'], C = 2 * Math.PI * 110;
+            let cum = 0, segs = '';
+            items.forEach((it, i) => { const l = it.total / T * C; segs += `<circle cx="160" cy="160" r="110" fill="none" stroke="${cols4[i]}" stroke-width="70" stroke-dasharray="${l} ${C - l}" stroke-dashoffset="${-cum}" transform="rotate(-90 160 160)"/>`; cum += l; });
+            const cards = items.map((it, i) => `<div class="pdf-item" style="border-left-color:${cols4[i]}"><div><strong style="color:${i === 3 ? '#475569' : cols4[i === 2 ? 1 : i]}">${pdfEsc(it.name)}</strong><em>${it.closed} cerrados · ${it.pending} abiertos</em></div><b style="color:${i === 3 ? '#475569' : cols4[i === 2 ? 1 : i]}">${p2(it.total, T)}% <i>(${it.total})</i></b></div>`).join('');
+            content('Reclamos por Tipo', `<div class="pdf-donut"><svg viewBox="0 0 320 320" width="340" height="340">${segs}<text x="160" y="160" text-anchor="middle" font-family="Poppins, Arial" font-weight="800" font-size="46" fill="#0b2447">${T}</text><text x="160" y="190" text-anchor="middle" font-family="Roboto, Arial" font-weight="700" font-size="14" fill="#64748b">CASOS TOTALES</text></svg><div class="pdf-items">${cards}</div></div>`);
+
+            // 4. Por cliente  /  5. Por creador (con totales)
+            const grpCols = (first, firstW, qtyCol) => [
+                { h: first, w: firstW, f: r => pdfEsc(r.name) },
+                { h: 'Reclamos', w: '14%', a: 'center', f: r => r.total, t: () => T },
+                { h: 'Cerrados', w: '14%', a: 'center', f: r => `<span class="pdf-ok">${r.closed}</span>`, t: () => closed },
+                { h: 'Abiertos', w: '14%', a: 'center', f: r => `<span class="pdf-warn">${r.pending}</span>`, t: () => pend },
+                { h: '% Cierre', w: '12%', a: 'center', f: r => pct(r.closed, r.total) + '%', t: () => pct(closed, T) + '%' }
+            ].concat(qtyCol ? [{ h: 'Cant. Reclamada', w: '16%', a: 'right', f: r => pdfNum(r.qty), t: () => pdfNum(qty) }] : []);
+            table('Reclamos por Cliente', `${clients.length} clientes con reclamos en el período analizado.`, grpCols('Cliente', '30%', true), clients, 9, true);
+            table('Reclamos por Creador', `${creators.length} creadores de avisos en el período analizado.`, grpCols('Creador', '46%', false), creators, 9, true);
+
+            // 6. Evolución mensual
+            if (months.length) {
+                const mx = Math.max(...months.map(m => m.n)) || 1;
+                const bars = months.map(m => `<div class="pdf-bar ${m === peak ? 'pk' : ''}"><b>${m.n}</b><div style="height:${m.n ? Math.max(6, Math.round(m.n / mx * 235)) : 0}px"></div></div>`).join('');
+                const lbls = months.map(m => `<span ${m === peak ? 'style="color:#0b2447"' : ''}>${m.label}</span>`).join('');
+                content('Evolución Mensual de Reclamos', `<div class="pdf-bars">${bars}</div><div class="pdf-lbls">${lbls}</div><div class="pdf-note"><b>Observación Clave:</b> ${pdfEsc(peak.full)} registró el pico del período con ${peak.n} reclamos (${p1(peak.n, T)}% del total). Promedio mensual: ${(T / months.length).toFixed(1).replace('.', ',')} reclamos.</div>`);
+            }
+
+            // 7. Pendientes de cierre
+            const pending = filteredData.filter(r => r.estado !== 'CERRADO').sort((a, b) => (a.fechaCreado || 0) - (b.fechaCreado || 0));
+            table('Reclamos Pendientes de Cierre', pending.length ? `Actualmente ${pending.length} de los ${T} casos requieren cierre formal administrativo:` : 'No hay reclamos pendientes de cierre.', [
+                { h: 'Nº Aviso', w: '12%', f: r => pdfEsc(r.aviso) },
+                { h: 'Fecha', w: '11%', f: r => fmt(r.fechaCreado) },
+                { h: 'Cliente', w: '21%', f: r => pdfEsc(r.cliente) },
+                { h: 'Creador', w: '16%', f: r => pdfEsc(r.creador) },
+                { h: 'Estado / Situación', w: '40%', cls: 'wrap', f: r => `<span class="pdf-pill">PENDIENTE</span>${pdfEsc(r.desc)}` }
+            ], pending, 9, false);
+
+            // 8. Conclusiones
+            let cc = `<p>${ic.v}<span><b>Tipo Predominante (${pdfEsc(t0.name)}):</b> Concentra el ${p2(t0.total, T)}% de los reclamos (${t0.total} de ${T} casos).</span></p>`;
+            cc += `<p>${ic.v}<span><b>Origen de los Avisos:</b> ${pdfEsc(creators[0].name)} generó la mayor cantidad de avisos (${creators[0].total} casos, ${p1(creators[0].total, T)}%).</span></p>`;
+            cc += `<p>${ic.v}<span><b>Cantidad Reclamada:</b> ${pdfNum(qty)} pares en total, distribuidos en ${clients.length} clientes.</span></p>`;
+            cc += `<p>${ic.v}<span><b>Efectividad en la Gestión:</b> El ${p1(closed, T)}% de los reclamos (${closed} de ${T}) se encuentra cerrado${pend ? `; ${pend} permanecen abiertos o pendientes` : ''}${avg !== null ? `. Tiempo promedio de resolución: ${avg} días.` : '.'}</span></p>`;
+            content('Conclusiones', `<div class="pdf-box big"><h3>Conclusiones Principales</h3>${cc}</div>`);
+
+            // 9. Cierre
+            S.push(`<section class="pdf-slide pdf-dark"><div style="position:absolute;left:0;right:0;top:300px;text-align:center"><div style="font:700 66px 'Poppins',Arial,sans-serif">¡Muchas Gracias!</div><div style="font-size:30px;color:#38bdf8;margin-top:34px">Supply Chain y Servicio al Cliente — MAINCAL S.A.</div></div><div class="pdf-foot"><span>MAINCAL S.A. — ${new Date().getFullYear()}</span><span>Gestión de Reclamos${cl !== 'Todos los clientes' ? ' ' + pdfEsc(cl) : ''}</span></div></section>`);
+
+            root.innerHTML = S.join('');
+            return true;
+        }
+
+        function pdfPrepare() {
+            if (!buildPdfSlides()) return;
+            let st = document.getElementById('pdfPageStyle');
+            if (!st) { st = document.createElement('style'); st.id = 'pdfPageStyle'; document.head.appendChild(st); }
+            st.textContent = '@page { size: 1456px 819px; margin: 0; }';
+            document.documentElement.classList.add('pdf-mode');
+        }
+        function pdfCleanup() {
+            document.documentElement.classList.remove('pdf-mode');
+            const st = document.getElementById('pdfPageStyle'); if (st) st.remove();
+            document.getElementById('pdfRoot').innerHTML = '';
+        }
+        window.addEventListener('beforeprint', pdfPrepare);
+        window.addEventListener('afterprint', pdfCleanup);
+
+        async function exportPDF() {
+            if (!filteredData || filteredData.length === 0) { alert('No hay datos para exportar.'); return; }
+            closeClientModal();
+            pdfPrepare();
+            try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
+            window.print();
+        }
+    </script>
+</body>
+</html>
